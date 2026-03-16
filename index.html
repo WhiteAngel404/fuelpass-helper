@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FuelPass Helper (PWA)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Basic PWA Metadata -->
+    <meta name="theme-color" content="#2563eb">
+    <link rel="manifest" href="manifest.json">
+    <style>
+        .btn-active:active { transform: scale(0.98); }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen font-sans">
+
+    <div class="max-w-md mx-auto p-6">
+        <!-- Header -->
+        <header class="text-center my-8">
+            <div class="inline-block p-3 bg-blue-600 rounded-2xl shadow-lg mb-4">
+                <svg xmlns="http://www.w3.org" class="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+            </div>
+            <h1 class="text-3xl font-extrabold text-slate-800">Fuel Helper</h1>
+            <p class="text-slate-500 mt-1">Check balance & get QR codes instantly.</p>
+        </header>
+
+        <!-- Main Card -->
+        <div class="bg-white rounded-3xl shadow-xl p-6 border border-slate-100">
+            <div class="mb-6">
+                <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Vehicle Number</label>
+                <input type="text" id="vehicleInput" placeholder="WP ABC-1234" 
+                    class="w-full bg-slate-50 border-2 border-transparent focus:border-blue-500 focus:bg-white p-4 rounded-xl text-xl font-bold uppercase transition-all outline-none text-slate-700">
+                <p id="errorBox" class="text-red-500 text-xs mt-2 hidden">Please enter a valid number.</p>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="grid grid-cols-1 gap-3">
+                <button onclick="handleSMS('BAL')" class="btn-active w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl shadow-md flex items-center justify-center gap-3 transition-all">
+                    <span>⛽ Check Fuel Balance</span>
+                </button>
+                
+                <button onclick="handleSMS('QR')" class="btn-active w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-4 rounded-xl shadow-md flex items-center justify-center gap-3 transition-all">
+                    <span>📱 Retrieve My QR</span>
+                </button>
+            </div>
+
+            <!-- Saved Vehicles (History) -->
+            <div id="historySection" class="mt-8 hidden">
+                <h3 class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-3">Saved Vehicles</h3>
+                <div id="historyList" class="flex flex-wrap gap-2"></div>
+            </div>
+        </div>
+
+        <footer class="mt-8 text-center">
+            <p class="text-xs text-slate-400">Works 100% Offline • No Data Collected</p>
+        </footer>
+    </div>
+
+    <script>
+        const OFFICIAL_NUM = "0766220000";
+        const input = document.getElementById('vehicleInput');
+
+        // Load History on Start
+        window.onload = renderHistory;
+
+        function handleSMS(type) {
+            const val = input.value.trim().toUpperCase();
+            if (val.length < 4) {
+                document.getElementById('errorBox').classList.remove('hidden');
+                return;
+            }
+            document.getElementById('errorBox').classList.add('hidden');
+
+            saveToHistory(val);
+            
+            const prefix = type === 'BAL' ? 'Fuel Bal' : 'Fuel QR';
+            const body = encodeURIComponent(`${prefix} ${val}`);
+            
+            // Trigger SMS
+            window.location.href = `sms:${OFFICIAL_NUM}?body=${body}`;
+        }
+
+        function saveToHistory(num) {
+            let history = JSON.parse(localStorage.getItem('fuel_history') || '[]');
+            if (!history.includes(num)) {
+                history.push(num);
+                localStorage.setItem('fuel_history', JSON.stringify(history.slice(-3))); // Save last 3
+                renderHistory();
+            }
+        }
+
+        function renderHistory() {
+            const history = JSON.parse(localStorage.getItem('fuel_history') || '[]');
+            const container = document.getElementById('historyList');
+            const section = document.getElementById('historySection');
+            
+            if (history.length > 0) {
+                section.classList.remove('hidden');
+                container.innerHTML = history.map(num => `
+                    <button onclick="setInput('${num}')" class="bg-slate-200 hover:bg-blue-100 text-slate-700 px-4 py-2 rounded-full text-sm font-bold transition-colors">
+                        ${num}
+                    </button>
+                `).join('');
+            }
+        }
+
+        function setInput(num) { input.value = num; }
+
+        // Register Service Worker for Offline Use
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js');
+        }
+    </script>
+</body>
+</html>
